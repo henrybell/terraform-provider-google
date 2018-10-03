@@ -368,6 +368,29 @@ func instanceConfigSchema() *schema.Schema {
 					},
 				},
 
+				"guest_accelerator": {
+					Type:     schema.TypeList,
+					Optional: true,
+					Computed: true,
+					ForceNew: true,
+
+					Elem: &schema.Resource{
+						Schema: map[string]*schema.Schema{
+							"count": {
+								Type:     schema.TypeInt,
+								Required: true,
+								ForceNew: true,
+							},
+							"type": {
+								Type:             schema.TypeString,
+								Required:         true,
+								ForceNew:         true,
+								DiffSuppressFunc: linkDiffSuppress,
+							},
+						},
+					},
+				},
+
 				"instance_names": {
 					Type:     schema.TypeList,
 					Computed: true,
@@ -613,6 +636,22 @@ func expandInstanceGroupConfig(cfg map[string]interface{}) *dataproc.InstanceGro
 			}
 		}
 	}
+
+	if v, ok := cfg["guest_accelerator"]; ok {
+		accels := v.([]interface{})
+		guestAccelerators := make([]*dataproc.AcceleratorConfig, 0, len(accels))
+		for _, raw := range accels {
+			data := raw.(map[string]interface{})
+			if data["count"].(int) == 0 {
+				continue
+			}
+			guestAccelerators = append(guestAccelerators, &dataproc.AcceleratorConfig{
+				AcceleratorCount:   int64(data["count"].(int)),
+				AcceleratorTypeUri: data["type"].(string),
+			})
+		}
+		icg.Accelerators = guestAccelerators
+	}
 	return icg
 }
 
@@ -826,6 +865,7 @@ func flattenInstanceGroupConfig(d *schema.ResourceData, icg *dataproc.InstanceGr
 			disk["num_local_ssds"] = icg.DiskConfig.NumLocalSsds
 			disk["boot_disk_type"] = icg.DiskConfig.BootDiskType
 		}
+		data["guest_accelerator"] = icg.Accelerators
 	}
 
 	data["disk_config"] = []map[string]interface{}{disk}
