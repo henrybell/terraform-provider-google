@@ -637,8 +637,8 @@ func expandInstanceGroupConfig(cfg map[string]interface{}) *dataproc.InstanceGro
 		}
 	}
 
-	if v, ok := cfg["guest_accelerator"]; ok {
-		accels := v.([]interface{})
+	if ga, ok := cfg["guest_accelerator"]; ok {
+		accels := ga.([]interface{})
 		guestAccelerators := make([]*dataproc.AcceleratorConfig, 0, len(accels))
 		for _, raw := range accels {
 			data := raw.(map[string]interface{})
@@ -855,6 +855,7 @@ func flattenPreemptibleInstanceGroupConfig(d *schema.ResourceData, icg *dataproc
 func flattenInstanceGroupConfig(d *schema.ResourceData, icg *dataproc.InstanceGroupConfig) []map[string]interface{} {
 	disk := map[string]interface{}{}
 	data := map[string]interface{}{}
+	accel := map[string]interface{}{}
 
 	if icg != nil {
 		data["num_instances"] = icg.NumInstances
@@ -865,10 +866,14 @@ func flattenInstanceGroupConfig(d *schema.ResourceData, icg *dataproc.InstanceGr
 			disk["num_local_ssds"] = icg.DiskConfig.NumLocalSsds
 			disk["boot_disk_type"] = icg.DiskConfig.BootDiskType
 		}
-		data["guest_accelerator"] = icg.Accelerators
+		if icg.Accelerators != nil {
+			accel["count"] = icg.Accelerators[0].AcceleratorCount
+			accel["type"] = icg.Accelerators[0].AcceleratorTypeUri
+		}
 	}
 
 	data["disk_config"] = []map[string]interface{}{disk}
+	data["guest_accelerator"] = []map[string]interface{}{accel}
 	return []map[string]interface{}{data}
 }
 
